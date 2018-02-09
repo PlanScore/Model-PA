@@ -57,7 +57,7 @@ party.pc <- function(var.root, d) {
     rep <- vars[str_detect(vars, paste0(var.root, ".r"))]
     d[,paste0(var.root, ".t")] <- d[,dem] + d[,rep]
     d[,paste0(var.root, ".pc")] <- d[,dem]/(d[,dem] + d[,rep])
-    select <- (d[,paste0(var.root, ".pc")] > 0.95) | (d[,paste0(var.root, ".pc")] < 0.05)
+    select <- (d[,paste0(var.root, ".pc")] == 1) | (d[,paste0(var.root, ".pc")] == 0)
     select[is.na(select)] <- FALSE
     d[select,paste0(var.root, ".pc")] <- NA
     select <- is.na(d[,paste0(var.root, ".pc")])
@@ -105,7 +105,7 @@ turnout <- Reduce(function(x,y)
 write.csv(turnout, "PA Precinct Model.PA House 2016.turnout.csv")
 
 #dem proportion#
-model <- lm(pa.hse.2016.pc ~ us.pres.2016.pc, data=d)
+model <- lm(pa.hse.2016.pc ~ us.pres.2016.pc + whiteva, data=d)
 random.coefs <- sim(model, nsims)
 output2 <- lapply(1:nsims, function(w,x,y,z) impute(w,x,y,z), d, "pa.hse.2016.pc.est", random.coefs)
 imputes <- lapply(1:nsims, function(i) 
@@ -148,7 +148,7 @@ turnout <- Reduce(function(x,y)
 write.csv(turnout, "PA Precinct Model.PA Senate 2016.turnout.csv")
 
 #dem proportion#
-model <- lm(pa.sen.2016.pc ~ us.pres.2016.pc, data=d)
+model <- lm(pa.sen.2016.pc ~ us.pres.2016.pc + whiteva, data=d)
 random.coefs <- sim(model, nsims)
 output2 <- lapply(1:nsims, function(w,x,y,z) impute(w,x,y,z), d, "pa.sen.2016.pc.est", random.coefs)
 imputes <- lapply(1:nsims, function(i) 
@@ -168,7 +168,7 @@ turnout <- Reduce(function(x,y)
 write.csv(turnout, "PA Precinct Model.US House 2016.turnout.csv")
 
 #dem proportion#
-model <- lm(us.hse.2016.pc ~ us.pres.2016.pc, data=d)
+model <- lm(us.hse.2016.pc ~ us.pres.2016.pc + whiteva, data=d)
 random.coefs <- sim(model, nsims)
 output2 <- lapply(1:nsims, function(w,x,y,z) impute(w,x,y,z), d, "us.hse.2016.pc.est", random.coefs)
 imputes <- lapply(1:nsims, function(i) 
