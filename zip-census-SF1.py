@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys, csv
+import sys, csv, collections
 
 # https://factfinder.census.gov/help/en/summary_level_code_list.htm
 STATE_SUMLEV = '040'
@@ -12,12 +12,73 @@ def line_part(line, start, length):
     '''
     return line[start-1:length+start-1]
 
+def get_block_group_populations():
+    print('Reading block group populations...', file=sys.stderr)
+    bg_blocks = collections.defaultdict(lambda: dict(pop=0, blocks=collections.defaultdict(int)))
+
+    with open('pageo2010.sf1') as file1:
+        for line1 in file1:
+            SUMLEV = line_part(line1, 9, 3)
+            GEOCOMP = line_part(line1, 12, 2)
+            STATE = line_part(line1, 28, 2)
+            COUNTY = line_part(line1, 30, 3).rstrip()
+            TRACT = line_part(line1, 55, 6).rstrip()
+            BLOCK = line_part(line1, 62, 4).rstrip()
+            BG = BLOCK[:-3]
+            block_geoid = f'{STATE}{COUNTY}{TRACT}{BLOCK}'
+            bg_geoid = f'{STATE}{COUNTY}{TRACT}{BG}'
+
+            POP100 = line_part(line1, 319, 9) # Total population
+
+            if SUMLEV not in (BLOCK_SUMLEV, ):
+                continue
+        
+            bg_blocks[bg_geoid]['pop'] += int(POP100)
+            bg_blocks[bg_geoid]['blocks'][block_geoid] += int(POP100)
+    
+    return bg_blocks
+
+def read_block_CVAPs(bg_blocks):
+    print('Reading block group CVAPs...', file=sys.stderr)
+    block_CVAPs = collections.defaultdict(lambda: collections.defaultdict(float))
+
+    with open('BlockGr.csv', encoding='latin-1') as bg_file:
+        for bg_row in csv.DictReader(bg_file):
+            if not bg_row['geoid'].startswith('15000US42'):
+                continue
+        
+            _, bg_geoid = bg_row['geoid'].split('US')
+            bg_line_title = bg_row['lntitle']
+            bg_CVAP_EST = int(bg_row['CVAP_EST'])
+            bg_CVAP_MOE = int(bg_row['CVAP_MOE'])
+            group = bg_blocks[bg_geoid]
+        
+            for (block_geoid, block_pop) in group['blocks'].items():
+                if group['pop'] > 0:
+                    fraction = block_pop / group['pop']
+                    full_geoid = f'{BLOCK_SUMLEV}0000US{block_geoid}'
+                    block_CVAPs[full_geoid][bg_line_title] = bg_CVAP_EST * fraction
+                    block_CVAPs[full_geoid][f'{bg_line_title}, Error'] = bg_CVAP_MOE * fraction
+
+            #print(bg_row, file=sys.stderr)
+    
+    return block_CVAPs
+
+block_CVAPs = read_block_CVAPs(get_block_group_populations())
+import pprint; pprint.pprint(list(block_CVAPs.items())[300:303], stream=sys.stderr)
+
 with open('pageo2010.sf1') as file1, open('pa000032010.sf1') as file2, open('pa000042010.sf1') as file3:
     rows2, rows3 = csv.reader(file2), csv.reader(file3)
     output = csv.DictWriter(sys.stdout,
         ('geoid', 'lat', 'lon', 'Population 2010', 'Hispanic Population 2010',
         'Black Population 2010', 'Voting-Age Population 2010',
-        'Hispanic Voting-Age Population 2010', 'Black Voting-Age Population 2010', ),
+        'Hispanic Voting-Age Population 2010', 'Black Voting-Age Population 2010',
+        'Citizen Voting-Age Population 2015',
+        'Citizen Voting-Age Population 2015, Error',
+        'Hispanic Citizen Voting-Age Population 2015',
+        'Hispanic Citizen Voting-Age Population 2015, Error',
+        'Black Citizen Voting-Age Population 2015',
+        'Black Citizen Voting-Age Population 2015, Error', ),
         dialect='excel')
     output.writeheader()
     
@@ -143,5 +204,31 @@ with open('pageo2010.sf1') as file1, open('pa000032010.sf1') as file2, open('pa0
                 'P0110039', 'P0110040', 'P0110041', 'P0110042', 'P0110043',
                 'P0110044', 'P0110050', 'P0110051', 'P0110052', 'P0110053',
                 'P0110054', 'P0110055', 'P0110060', 'P0110061', 'P0110062',
-                'P0110063', )])
+                'P0110063', )]),
+            
+            'Citizen Voting-Age Population 2015': round(
+                block_CVAPs[geoid]['Total'],
+                3),
+            
+            'Citizen Voting-Age Population 2015, Error': round(
+                block_CVAPs[geoid]['Total, Error'],
+                3),
+            
+            'Hispanic Citizen Voting-Age Population 2015': round(
+                block_CVAPs[geoid]['Hispanic or Latino'],
+                3),
+            
+            'Hispanic Citizen Voting-Age Population 2015, Error': round(
+                block_CVAPs[geoid]['Hispanic or Latino, Error'],
+                3),
+            
+            'Black Citizen Voting-Age Population 2015': round(
+                block_CVAPs[geoid]['Black or African American Alone']
+              + block_CVAPs[geoid]['Black or African American and White'],
+                3),
+            
+            'Black Citizen Voting-Age Population 2015, Error': round(
+                block_CVAPs[geoid]['Black or African American Alone, Error']
+              + block_CVAPs[geoid]['Black or African American and White, Error'],
+                3),
             })

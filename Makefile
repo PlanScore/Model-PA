@@ -20,9 +20,13 @@ ACS-data.csv:
 	parallel unzip -o -d ACS-temp ::: ACS-temp/*.zip
 	csvjoin -c geoid ACS-temp/acs2016_5yr_*/*.csv > $@
 
-Census-data.csv.gz: pa2010.sf1.zip
+Census-data.csv.gz: pa2010.sf1.zip CVAP_CSV_Format_2011-2015.zip
 	unzip -o pa2010.sf1.zip pageo2010.sf1 pa000032010.sf1 pa000042010.sf1
+	unzip -o CVAP_CSV_Format_2011-2015.zip BlockGr.csv
 	./zip-census-SF1.py | gzip --stdout > $@
 
 pa2010.sf1.zip:
 	curl -L https://www2.census.gov/census_2010/04-Summary_File_1/Pennsylvania/pa2010.sf1.zip -o $@ 
+
+CVAP_CSV_Format_2011-2015.zip:
+	curl -L https://www.census.gov/rdo/pdf/CVAP_CSV_Format_2011-2015.zip -o $@
