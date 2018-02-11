@@ -7,6 +7,7 @@ logging.basicConfig(stream=sys.stderr, level=logging.INFO, format='%(levelname)0
 parser = argparse.ArgumentParser(description='Merge layers and votes')
 parser.add_argument('geo_name', help='Spatial file with layers and areas')
 parser.add_argument('acs_name', help='Tabular CSV file with ACS population')
+parser.add_argument('census_name', help='Tabular CSV file with Census population')
 parser.add_argument('votecsv_name', help='Tabular CSV file with vote counts')
 parser.add_argument('out_name', help='Output GeoJSON file with areas and votes')
 
@@ -41,10 +42,28 @@ with gzip.open(args.votecsv_name, 'rt') as file2:
                 votes[psid][key] += float(value)
 
 logging.info('Read counts for {} areas.'.format(len(votes)))
-logging.info('Reading areas from {}...'.format(args.geo_name))
 
 ds = ogr.Open(args.geo_name)
 features_json = list()
+
+logging.info('Reading Census population from {}...'.format(args.census_name))
+
+with gzip.open(args.census_name, 'rt') as census_file:
+    for row in csv.DictReader(census_file):
+        geometry = dict(type='Point', coordinates=[float(row['lon']), float(row['lat'])])
+        feature_json = dict(type='Feature', geometry=geometry, properties={})
+        for (key, value) in row.items():
+            if key in ('lat', 'lon'):
+                continue
+            elif key == 'geoid':
+                feature_json['properties'][key] = value
+            else:
+                feature_json['properties'][key] = int(value)
+        features_json.append(json.dumps(feature_json, sort_keys=True))
+
+block_count = len(features_json)
+logging.info('Read population for {} blocks.'.format(block_count))
+logging.info('Reading areas from {}...'.format(args.geo_name))
 
 for feature in ds.GetLayer('tracts'):
     feature_json = json.loads(feature.ExportToJson())
@@ -60,7 +79,7 @@ for feature in ds.GetLayer('precincts'):
         in votes[properties['psid']].items() if column_pattern.match(key)})
     features_json.append(json.dumps(feature_json, sort_keys=True))
 
-logging.info('Read {} areas.'.format(len(features_json)))
+logging.info('Read {} areas.'.format(len(features_json) - block_count))
 logging.info('Writing areas to {}...'.format(args.out_name))
 
 with open(args.out_name, 'w') as file3:
