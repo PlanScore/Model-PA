@@ -30,3 +30,8 @@ pa2010.sf1.zip:
 
 CVAP_CSV_Format_2011-2015.zip:
 	curl -L https://www.census.gov/rdo/pdf/CVAP_CSV_Format_2011-2015.zip -o $@
+
+.SECONDARY: PA-Precinct-Model.US-House-2016.votes.csv.gz \
+            PA-Precinct-Model.PA-House-2016.votes.csv.gz \
+            PA-Precinct-Model.PA-Senate-2016.votes.csv.gz \
+            ACS-data.csv pa2010.sf1.zip CVAP_CSV_Format_2011-2015.zip
