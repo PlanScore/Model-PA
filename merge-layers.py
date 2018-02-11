@@ -58,7 +58,12 @@ with gzip.open(args.census_name, 'rt') as census_file:
             elif key == 'geoid':
                 feature_json['properties'][key] = value
             else:
-                feature_json['properties'][key] = int(value)
+                try:
+                    property = int(value)
+                except ValueError:
+                    property = round(float(value), 3)
+                finally:
+                    feature_json['properties'][key] = property
         features_json.append(json.dumps(feature_json, sort_keys=True))
 
 block_count = len(features_json)
