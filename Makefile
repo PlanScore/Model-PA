@@ -19,3 +19,10 @@ ACS-data.csv:
 	curl -L 'https://api.censusreporter.org/1.0/data/download/acs2016_5yr?table_ids={B01001,B02009,B03002}&geo_ids=04000US42,140|04000US42&format=csv' -o 'ACS-temp/#1.zip' -s
 	parallel unzip -o -d ACS-temp ::: ACS-temp/*.zip
 	csvjoin -c geoid ACS-temp/acs2016_5yr_*/*.csv > $@
+
+Census-data.csv.gz: pa2010.sf1.zip
+	unzip -o pa2010.sf1.zip pageo2010.sf1 pa000032010.sf1 pa000042010.sf1
+	./zip-census-SF1.py | gzip --stdout > $@
+
+pa2010.sf1.zip:
+	curl -L https://www2.census.gov/census_2010/04-Summary_File_1/Pennsylvania/pa2010.sf1.zip -o $@ 
