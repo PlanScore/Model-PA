@@ -72,9 +72,9 @@ party.pc <- function(var.root, d) {
 
 setwd("XXXX") #enter appropriate working directory
 
-var.names <- read.csv("PA variable names.csv", header=F, stringsAsFactors=F)
+var.names <- read.csv("PA-Precinct-variable-names.csv", header=F, stringsAsFactors=F)
 
-d <- read.csv("Pennsylvania Precinct-Level Results - 2016-11-08 General.csv",
+d <- read.csv("PA-Precinct-Level-Results--2016-11-08--General.csv",
               header=T, stringsAsFactors=F)
 d <- d[!str_detect(d$JP.Districts, ","),] %>% mutate(JP.Districts=as.numeric(JP.Districts))
 d <- d[!str_detect(d$PA5.Districts, ","),] %>% mutate(PA5.Districts=as.numeric(PA5.Districts))
@@ -111,7 +111,7 @@ turnout <- Reduce(function(x,y)
   merge(x, y, 
         by=c("cntyname","mcdname","vtdname","name","stf","psid","cd2016","cdnew")), 
   output1)
-write.csv(turnout, "PA Precinct Model.US House 2016.turnout.csv")
+write.csv(turnout, "PA-Precinct-Model.US-House-2016.turnout.csv")
 
 #dem proportion#
 model <- lm(us.hse.2016.pc ~ us.pres.2016.pc + whiteva, data=d)
@@ -125,7 +125,7 @@ proportion <- Reduce(function(x,y)
   merge(x, y, 
         by=c("cntyname","mcdname","vtdname","name","stf","psid","cd2016","cdnew")), 
   output2)
-write.csv(proportion, "PA Precinct Model.US House 2016.propD.csv")
+write.csv(proportion, "PA-Precinct-Model.US-House-2016.propD.csv")
 
 ##PA House##
 #turnout#
@@ -135,7 +135,7 @@ output1 <- lapply(1:nsims, function(w,x,y,z) impute(w,x,y,z), d, "pa.hse.2016.t.
 
 turnout <- Reduce(function(x,y) 
   merge(x, y, by=c("cntyname","mcdname","vtdname","name","stf","psid")), output1)
-write.csv(turnout, "PA Precinct Model.PA House 2016.turnout.csv")
+write.csv(turnout, "PA-Precinct-Model.PA-House-2016.turnout.csv")
 
 #dem proportion#
 model <- lm(pa.hse.2016.pc ~ us.pres.2016.pc + whiteva, data=d)
@@ -145,7 +145,7 @@ imputes <- lapply(1:nsims, function(i)
   merge(output1[[i]], output2[[i]], by=c("cntyname","mcdname","vtdname","name","stf","psid")))
 proportion <- Reduce(function(x,y) 
   merge(x, y, by=c("cntyname","mcdname","vtdname","name","stf","psid")), output2)
-write.csv(proportion, "PA Precinct Model.PA House 2016.propD.csv")
+write.csv(proportion, "PA-Precinct-Model.PA-House-2016.propD.csv")
 
 ##PA Senate##
 #turnout#
@@ -155,7 +155,7 @@ output1 <- lapply(1:nsims, function(w,x,y,z) impute(w,x,y,z), d, "pa.sen.2016.t.
 
 turnout <- Reduce(function(x,y) 
   merge(x, y, by=c("cntyname","mcdname","vtdname","name","stf","psid")), output1)
-write.csv(turnout, "PA Precinct Model.PA Senate 2016.turnout.csv")
+write.csv(turnout, "PA-Precinct-Model.PA-Senate-2016.turnout.csv")
 
 #dem proportion#
 model <- lm(pa.sen.2016.pc ~ us.pres.2016.pc + whiteva, data=d)
@@ -165,7 +165,7 @@ imputes <- lapply(1:nsims, function(i)
   merge(output1[[i]], output2[[i]], by=c("cntyname","mcdname","vtdname","name","stf","psid")))
 proportion <- Reduce(function(x,y) 
   merge(x, y, by=c("cntyname","mcdname","vtdname","name","stf","psid")), output2)
-write.csv(proportion, "PA Precinct Model.PA Senate 2016.propD.csv")
+write.csv(proportion, "PA-Precinct-Model.PA-Senate-2016.propD.csv")
 
 
 
