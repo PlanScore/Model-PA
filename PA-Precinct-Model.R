@@ -20,7 +20,7 @@ impute <- function(i, data, newvar, inputs) {
                        as.matrix(data[,ivs]) %*% fix.coefs, random.u,
                                          lower=0, upper=upper.bound)
   data$intercept <- NULL
-  data[,c("cntyname","mcdname","vtdname","name","stf","psid",newvar)]
+  data[,c("cntyname","mcdname","vtdname","name","stf","psid","cd2016","cdnew",newvar)]
 }
 
 #summary stats#
@@ -70,12 +70,14 @@ party.pc <- function(var.root, d) {
 ##FORMATTING##
 ##############
 
-setwd("/Users/ericmcghee/Dropbox/Redistricting/PlanScore/Data")
+setwd("XXXX") #enter appropriate working directory
 
-var.names <- read.csv("PA Variable names.csv", header=F, stringsAsFactors=F)
+var.names <- read.csv("PA variable names.csv", header=F, stringsAsFactors=F)
 
 d <- read.csv("Pennsylvania Precinct-Level Results - 2016-11-08 General.csv",
               header=T, stringsAsFactors=F)
+d <- d[!str_detect(d$JP.Districts, ","),] %>% mutate(JP.Districts=as.numeric(JP.Districts))
+d <- d[!str_detect(d$PA5.Districts, ","),] %>% mutate(PA5.Districts=as.numeric(PA5.Districts))
 names(d) <- var.names[,2]
 start <- which(names(d)=="white")
 end <- dim(d)[2]
@@ -85,14 +87,45 @@ names <- names(d) %>% .[str_detect(., "[.]([d r])")] %>% #rename vars
 for(i in 1:length(names)) { #calculate proportions for every race
   d <- party.pc(names[i], d)
 }
-d <- mutate(d, white=white/100, whiteva=whiteva/100) %>%
+d <- mutate(d, white=white/100, 
+            whiteva=whiteva/100,
+            uncontested=(cd2016==3 | cd2016==13 | cd2016==18)) %>%
   filter(!is.na(us.pres.2016.pc), !is.na(whiteva))
+d$us.hse.2016.pc <- d$us.hse.2016.d/(d$us.hse.2016.d+d$us.hse.2016.r)
+d$us.hse.2016.pc[d$uncontested] <- NA
 
 ############
 ##ANALYSIS##
 ############
 
-nsims <- 1000
+nsims <- 1000 #number of simulations
+
+##US House##
+#turnout#
+model <- lm(us.hse.2016.t ~ us.pres.2016.t, data=d)
+random.coefs <- sim(model, nsims)
+output1 <- lapply(1:nsims, function(w,x,y,z) impute(w,x,y,z), d, "us.hse.2016.t.est", 
+                  random.coefs)
+
+turnout <- Reduce(function(x,y) 
+  merge(x, y, 
+        by=c("cntyname","mcdname","vtdname","name","stf","psid","cd2016","cdnew")), 
+  output1)
+write.csv(turnout, "PA Precinct Model.US House 2016.turnout.csv")
+
+#dem proportion#
+model <- lm(us.hse.2016.pc ~ us.pres.2016.pc + whiteva, data=d)
+random.coefs <- sim(model, nsims)
+output2 <- lapply(1:nsims, function(w,x,y,z) impute(w,x,y,z), d, "us.hse.2016.pc.est", 
+                  random.coefs)
+imputes <- lapply(1:nsims, function(i) 
+  merge(output1[[i]], output2[[i]], 
+        by=c("cntyname","mcdname","vtdname","name","stf","psid","cd2016","cdnew")))
+proportion <- Reduce(function(x,y) 
+  merge(x, y, 
+        by=c("cntyname","mcdname","vtdname","name","stf","psid","cd2016","cdnew")), 
+  output2)
+write.csv(proportion, "PA Precinct Model.US House 2016.propD.csv")
 
 ##PA House##
 #turnout#
@@ -114,29 +147,6 @@ proportion <- Reduce(function(x,y)
   merge(x, y, by=c("cntyname","mcdname","vtdname","name","stf","psid")), output2)
 write.csv(proportion, "PA Precinct Model.PA House 2016.propD.csv")
 
-#predictions vs actual#
-setwd("/Users/ericmcghee/Dropbox/PPIC/CA Commission EG/Data")
-actual <- read.csv("Legislative Elections 2002-2016.csv", header=T, stringsAsFactors=F)[,-1] %>%
-  filter(statenm=="pennsylvania", year==2016, chamber==0) %>%
-  dplyr::select(distnum, canvt.d, canvt.r, vote)
-
-setwd("/Users/ericmcghee/Dropbox/Redistricting/PlanScore/Data")
-predicted <- read.csv("2018.01.19 Wisconsin Predictions - Sheet1.csv", header=T,
-                     stringsAsFactors=F) %>%
-  mutate(canvt.d.pred=as.numeric(strip.commas(Democratic.Votes)),
-         canvt.r.pred=as.numeric(strip.commas(Republican.Votes)),
-         vote.pred=canvt.d.pred/(canvt.d.pred+canvt.r.pred)) %>%
-  merge(actual, by.x=c("Assembly.District"), by.y=c("distnum"))
-
-plot(predicted$vote, predicted$vote.pred, xlab="Actual Vote Share", ylab="Predicted Vote Share")
-abline(a=0, b=1)
-plot(predicted$canvt.d[!is.na(predicted$vote)], predicted$canvt.d.pred[!is.na(predicted$vote)],
-     xlab="Actual Democratic Vote", ylab="Predicted Democratic Vote")
-abline(a=0, b=1)
-plot(predicted$canvt.r[!is.na(predicted$vote)], predicted$canvt.r.pred[!is.na(predicted$vote)],
-     xlab="Actual Republican Vote", ylab="Predicted Republican Vote")
-abline(a=0, b=1)
-
 ##PA Senate##
 #turnout#
 model <- lm(pa.sen.2016.t ~ us.pres.2016.t, data=d)
@@ -157,40 +167,5 @@ proportion <- Reduce(function(x,y)
   merge(x, y, by=c("cntyname","mcdname","vtdname","name","stf","psid")), output2)
 write.csv(proportion, "PA Precinct Model.PA Senate 2016.propD.csv")
 
-##US House##
-#turnout#
-model <- lm(us.hse.2016.t ~ us.pres.2016.t, data=d)
-random.coefs <- sim(model, nsims)
-output1 <- lapply(1:nsims, function(w,x,y,z) impute(w,x,y,z), d, "us.hse.2016.t.est", random.coefs)
-
-turnout <- Reduce(function(x,y) 
-  merge(x, y, by=c("cntyname","mcdname","vtdname","name","stf","psid")), output1)
-write.csv(turnout, "PA Precinct Model.US House 2016.turnout.csv")
-
-#dem proportion#
-model <- lm(us.hse.2016.pc ~ us.pres.2016.pc + whiteva, data=d)
-random.coefs <- sim(model, nsims)
-output2 <- lapply(1:nsims, function(w,x,y,z) impute(w,x,y,z), d, "us.hse.2016.pc.est", random.coefs)
-imputes <- lapply(1:nsims, function(i) 
-  merge(output1[[i]], output2[[i]], by=c("cntyname","mcdname","vtdname","name","stf","psid")))
-proportion <- Reduce(function(x,y) 
-  merge(x, y, by=c("cntyname","mcdname","vtdname","name","stf","psid")), output2)
-write.csv(proportion, "PA Precinct Model.US House 2016.propD.csv")
-
-##Evaluations##
-#votes, seats, eg for random districts#
-scramble <- sample(1:dim(imputes[[1]])[1], dim(imputes[[1]])[1]) #for random districts
-
-sv <- ldply(lapply(imputes, function(x,y,z) stats(x,y,z), scramble, 13))
-results.ushse <- data.frame(V=round(median(sv$v),3),V.moe=round(2*sd(sv$v),3),
-                            S=round(median(sv$s),3),S.moe=round(2*sd(sv$s),3),
-                            EG=round(median(sv$eg),3),EG.moe=round(2*sd(sv$eg),3),
-                            Competitive=round(median(sv$comp),3),
-                            Competitive.moe=round(2*sd(sv$comp),3))
-
-##combining all the results##
-results <- rbind(results.nchse, results.ncsen, results.ushse)
-rownames(results) <- c("NC House", "NC Senate", "US House")
-print(results)
 
 
