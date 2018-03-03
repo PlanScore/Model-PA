@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys, argparse, gzip, csv, re, collections, logging, json
+import sys, argparse, gzip, csv, re, collections, logging, json, math
 from osgeo import ogr
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO, format='%(levelname)09s - %(message)s')
@@ -19,11 +19,32 @@ populations = collections.defaultdict(lambda: collections.defaultdict(int))
 
 with open(args.acs_name, 'r') as acs_file:
     rows = csv.DictReader(acs_file)
+    vpop_keys = [f'B010010{male:02d}' for male in range(7, 26)] \
+              + [f'B010010{female:02d}' for female in range(31, 50)]
     
     for row in rows:
         geoid, _ = row.pop('geoid'), row.pop('name')
-        populations[geoid]['Population'] += int(row['B01001001'])
-        populations[geoid]['Population, Error'] += int(row['B01001001, Error'])
+        populations[geoid]['Population 2016'] = int(row['B01001001'])
+        populations[geoid]['Population 2016, Error'] = int(row['B01001001, Error'])
+        populations[geoid]['Households 2016'] = int(row['B11001001'])
+        populations[geoid]['Households 2016, Error'] = int(row['B11001001, Error'])
+        populations[geoid]['Black Population 2016'] = int(row['B02009001'])
+        populations[geoid]['Black Population 2016, Error'] = int(row['B02009001, Error'])
+        populations[geoid]['Hispanic Population 2016'] = int(row['B03002012'])
+        populations[geoid]['Hispanic Population 2016, Error'] = int(row['B03002012, Error'])
+        populations[geoid]['Household Income 2016'] = int(row['B19013001'])
+        populations[geoid]['Household Income 2016, Error'] = int(row['B19013001, Error'])
+        
+        vpop = [int(row[k]) for k in vpop_keys]
+        populations[geoid]['Voting-Age Population 2016'] = sum(vpop)
+
+        vpop_var = [int(row[f'{k}, Error']) ** 2 for k in vpop_keys]
+        populations[geoid]['Voting-Age Population 2016, Error'] = round(math.sqrt(sum(vpop_var)))
+
+        populations[geoid]['High School or GED 2016'] = \
+            int(row['B15003017']) + int(row['B15003018'])
+        populations[geoid]['High School or GED 2016, Error'] = \
+            int(math.sqrt(int(row['B15003017, Error'])**2 + int(row['B15003018, Error'])**2))
 
 logging.info('Read population for {} areas.'.format(len(populations)))
 logging.info('Reading vote counts from {}...'.format(args.votecsv_name))
