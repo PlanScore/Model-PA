@@ -40,6 +40,9 @@ with open(args.acs_name, 'r') as acs_file:
 
         vpop_var = [int(row[f'{k}, Error']) ** 2 for k in vpop_keys]
         populations[geoid]['Voting-Age Population 2016, Error'] = round(math.sqrt(sum(vpop_var)))
+        
+        populations[geoid]['Education Population 2016'] = int(row['B15003001'])
+        populations[geoid]['Education Population 2016, Error'] = int(row['B15003001, Error'])
 
         populations[geoid]['High School or GED 2016'] = \
             int(row['B15003017']) + int(row['B15003018'])
