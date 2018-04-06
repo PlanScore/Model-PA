@@ -10,6 +10,10 @@ all: PA-Precinct-Model.US-House-2016.votes.geojson \
 %.votes.csv.gz: %.propD.csv.gz %.turnout.csv.gz
 	./premultiply.py $^ $@
 
+# Raw votes are calculated from Dem proportion and turnout estimates
+%.votes.csv.gz: %.open.csv.gz %.turnout.csv.gz
+	./premultiply.py --100 --year $^ $@
+
 # Read Census ACS data from Census Reporter by tract (140).
 # Table B01001: Sex by Age, https://censusreporter.org/tables/B01001/
 # Table B02009: Black Alone or in Combination, https://censusreporter.org/tables/B02009/
