@@ -6,6 +6,7 @@ logging.basicConfig(stream=sys.stderr, level=logging.INFO, format='%(levelname)0
 
 parser = argparse.ArgumentParser(description='Merge layers and votes')
 parser.add_argument('geo_name', help='Spatial file with layers and areas')
+parser.add_argument('pres_votecsv_name', help='Tabular CSV file with Presidential vote counts')
 parser.add_argument('acs_name', help='Tabular CSV file with ACS population')
 parser.add_argument('census_name', help='Tabular CSV file with Census population')
 parser.add_argument('votecsv_name', help='Tabular CSV file with vote counts')
@@ -53,7 +54,7 @@ logging.info('Read population for {} areas.'.format(len(populations)))
 logging.info('Reading vote counts from {}...'.format(args.votecsv_name))
 
 votes = collections.defaultdict(lambda: collections.defaultdict(float))
-column_pattern = re.compile(r'^(DEM|REP)\d+$')
+column_pattern1 = re.compile(r'^(DEM|REP)\d+$')
 
 with gzip.open(args.votecsv_name, 'rt') as file2:
     rows = csv.DictReader(file2)
@@ -62,10 +63,25 @@ with gzip.open(args.votecsv_name, 'rt') as file2:
         #break
         psid = int(row['psid'].split(':', 2)[1])
         for (key, value) in row.items():
-            if column_pattern.match(key):
+            if column_pattern1.match(key):
                 votes[psid][key] += float(value)
 
 logging.info('Read counts for {} areas.'.format(len(votes)))
+logging.info('Reading presidential vote counts from {}...'.format(args.pres_votecsv_name))
+
+column_pattern2 = re.compile(r'^US ')
+
+with gzip.open(args.pres_votecsv_name, 'rt') as file2:
+    rows = csv.DictReader(file2)
+    
+    for row in rows:
+        #break
+        psid = int(row['psid'].split(':', 2)[1])
+        for (key, value) in row.items():
+            if column_pattern2.match(key):
+                votes[psid][key] += float(value)
+
+logging.info('Read presidential counts for {} areas.'.format(len(votes)))
 
 ds = ogr.Open(args.geo_name)
 features_json = list()
@@ -105,7 +121,7 @@ for feature in ds.GetLayer('precincts'):
     feature_json = json.loads(feature.ExportToJson())
     properties = feature_json['properties']
     properties.update({key: round(value, 1) for (key, value)
-        in votes[properties['psid']].items() if column_pattern.match(key)})
+        in votes[properties['psid']].items()})
     features_json.append(json.dumps(feature_json, sort_keys=True))
 
 logging.info('Read {} areas.'.format(len(features_json) - block_count))

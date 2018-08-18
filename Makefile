@@ -4,7 +4,7 @@ all: PA-Precinct-Model.US-House-2016.votes.geojson \
 
 # Spatial votes are calculated from raw votes and geographic areas
 %.geojson: ACS-data.csv Census-data.csv.gz %.csv.gz
-	./merge-layers.py PA-Geographies.gpkg $^ $@
+	./merge-layers.py PA-Geographies.gpkg Pres-2016.votes.csv.gz $^ $@
 
 # Raw votes are calculated from Dem proportion and turnout estimates
 %.votes.csv.gz: %.propD.csv.gz %.turnout.csv.gz
