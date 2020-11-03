@@ -54,7 +54,7 @@ logging.info('Read population for {} areas.'.format(len(populations)))
 logging.info('Reading vote counts from {}...'.format(args.votecsv_name))
 
 votes = collections.defaultdict(lambda: collections.defaultdict(float))
-column_pattern1 = re.compile(r'^(DEM|REP)\d+$')
+column_pattern1 = re.compile(r'.+(DEM|REP)$')
 
 with gzip.open(args.votecsv_name, 'rt') as file2:
     rows = csv.DictReader(file2)

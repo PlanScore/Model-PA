@@ -1,6 +1,4 @@
-all: PA-Precinct-Model.US-House-2016.votes.geojson \
-     PA-Precinct-Model.PA-House-2016.votes.geojson \
-     PA-Precinct-Model.PA-Senate-2016.votes.geojson
+all: PA-District-Model.votes.geojson
 
 # Spatial votes are calculated from raw votes and geographic areas
 %.geojson: ACS-data.csv Census-data.csv.gz %.csv.gz
